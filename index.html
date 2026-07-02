@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Stundenbuch">
+<title>Stundenbuch</title>
+<link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #f7f4ef;
+  --surface: #ffffff;
+  --ink: #1a1a1a;
+  --ink-soft: #5a5a5a;
+  --accent: #1a6b72;
+  --accent-dark: #124e54;
+  --accent-light: #e8f4f5;
+  --border: #ddd8d0;
+  --red: #c0392b;
+  --green: #27ae60;
+  --green-light: #eafaf1;
+  --orange: #c47a1e;
+  --orange-light: #fbf0e2;
+  --nav-height: 0px;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+body { font-family: 'Source Sans 3', -apple-system, sans-serif;
+  background: var(--bg); color: var(--ink); height: 100dvh;
+  overflow: hidden; user-select: none; }
+
+/* ── LOGIN ───────────────────────────────────────────── */
+#loginScreen {
+  position: fixed; inset: 0; z-index: 300;
+  background: var(--accent-dark);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 2rem;
+}
+.login-logo { font-size: 1.1rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: white; }
+.login-sub { font-size: 0.72rem; color: rgba(255,255,255,0.45); letter-spacing: 0.1em; margin-bottom: 2.5rem; margin-top: 0.3rem; }
+.login-card { background: white; border-radius: 14px; padding: 1.8rem; width: 100%; max-width: 320px; }
+.login-card h2 { font-size: 1rem; font-weight: 600; margin-bottom: 1.4rem; color: var(--ink); }
+.login-field { margin-bottom: 0.9rem; }
+.login-field label { font-size: 0.7rem; font-weight: 600; color: var(--ink-soft); display: block; margin-bottom: 4px; letter-spacing: 0.06em; text-transform: uppercase; }
+.login-field input { width: 100%; padding: 0.65rem 0.85rem; border: 1.5px solid var(--border); border-radius: 8px; font-size: 0.95rem; outline: none; color: var(--ink); font-family: inherit; }
+.login-field input:focus { border-color: var(--accent); }
+.login-btn { width: 100%; padding: 0.8rem; background: var(--accent); color: white; border: none; border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; margin-top: 0.4rem; font-family: inherit; }
+.login-btn:active { background: var(--accent-dark); }
+.login-error { font-size: 0.78rem; color: var(--red); margin-top: 0.7rem; text-align: center; display: none; }
+
+/* ── APP ─────────────────────────────────────────────── */
+#app { display: none; flex-direction: column; height: 100dvh; }
+.header { background: #2d2d2d; color: white;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 16px; padding-top: var(--safe-top);
+  min-height: 56px; flex-shrink: 0; }
+.header-title { font-size: 0.88rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
+.header-actions { display: flex; gap: 2px; }
+.icon-btn { background: none; border: none; color: rgba(255,255,255,0.7); padding: 8px;
+  border-radius: 8px; cursor: pointer; font-size: 19px; line-height: 1; font-family: inherit; }
+.icon-btn:active { color: white; }
+.spin { animation: spin 1s linear infinite; display: inline-block; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+main { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  padding: 14px 14px calc(90px + var(--safe-bottom)); }
+
+/* Stats */
+.stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+.stat-card { background: var(--surface); border-radius: 12px; padding: 14px; border: 1.5px solid var(--border); }
+.stat-card.wide { grid-column: span 2; }
+.stat-label { font-size: 0.7rem; color: var(--ink-soft); margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.06em; }
+.stat-value { font-size: 1.5rem; font-weight: 700; }
+.stat-value.orange { color: var(--orange); }
+.stat-value.green { color: var(--green); }
+.stat-value.ink { color: var(--ink); }
+
+/* Filter */
+.filter-row { display: flex; gap: 6px; margin-bottom: 12px; overflow-x: auto;
+  scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.filter-row::-webkit-scrollbar { display: none; }
+.chip { flex-shrink: 0; padding: 6px 14px; border-radius: 20px; font-size: 0.82rem;
+  font-weight: 600; font-family: inherit; border: 1.5px solid var(--border);
+  background: var(--surface); color: var(--ink-soft); cursor: pointer; letter-spacing: 0.02em; }
+.chip.active { background: var(--accent); color: white; border-color: var(--accent); }
+
+/* List */
+.card { background: var(--surface); border-radius: 10px; padding: 13px 14px;
+  margin-bottom: 8px; cursor: pointer; border: 1.5px solid var(--border); }
+.card:active { border-color: var(--accent); }
+.card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+.card-datum { font-size: 0.95rem; font-weight: 700; color: var(--ink); }
+.card-betrag { font-size: 0.95rem; font-weight: 700; color: var(--accent); white-space: nowrap; }
+.card-sub { font-size: 0.82rem; color: var(--ink-soft); margin-top: 3px; }
+.card-notiz { font-size: 0.82rem; color: var(--ink-soft); margin-top: 4px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card-bottom { margin-top: 8px; display: flex; align-items: center; }
+.badge { font-size: 0.68rem; font-weight: 700; padding: 3px 9px; border-radius: 20px; letter-spacing: 0.02em; }
+.badge-offen { background: var(--orange-light); color: var(--orange); }
+.badge-bezahlt { background: var(--green-light); color: var(--green); }
+.empty-state { text-align: center; padding: 50px 20px; color: var(--ink-soft); }
+.empty-state .icon { font-size: 40px; margin-bottom: 10px; }
+
+/* FAB */
+.fab { position: fixed; right: 18px; bottom: calc(20px + var(--safe-bottom));
+  width: 56px; height: 56px; border-radius: 50%; background: var(--accent); color: white;
+  border: none; cursor: pointer; font-size: 28px; display: flex; align-items: center;
+  justify-content: center; box-shadow: 0 4px 14px rgba(26,107,114,0.4); z-index: 20; }
+.fab:active { background: var(--accent-dark); }
+
+/* Overlay */
+.overlay { position: fixed; inset: 0; z-index: 100; display: flex;
+  flex-direction: column; pointer-events: none; opacity: 0; transition: opacity 0.2s; }
+.overlay.open { pointer-events: all; opacity: 1; }
+.overlay-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,0.45); }
+.overlay-sheet { position: absolute; bottom: 0; left: 0; right: 0;
+  background: var(--surface); border-radius: 16px 16px 0 0;
+  padding: 0 0 var(--safe-bottom); max-height: 90dvh; overflow-y: auto;
+  transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.32,0.72,0,1); }
+.overlay.open .overlay-sheet { transform: translateY(0); }
+.sheet-handle { width: 36px; height: 4px; background: var(--border); border-radius: 2px; margin: 10px auto 0; }
+.sheet-header { padding: 14px 20px 12px; border-bottom: 1.5px solid var(--border); }
+.sheet-title { font-size: 1.1rem; font-weight: 700; color: var(--ink); }
+.sheet-sub { font-size: 0.85rem; color: var(--ink-soft); margin-top: 3px; }
+.sheet-body { padding: 18px 20px; }
+
+.field-group { margin-bottom: 12px; }
+.field-label { font-size: 0.7rem; font-weight: 700; color: var(--ink-soft); display: block;
+  margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.06em; }
+.field-input { width: 100%; padding: 0.68rem 0.85rem; border: 1.5px solid var(--border);
+  border-radius: 8px; font-size: 0.95rem; font-family: inherit; background: var(--bg);
+  color: var(--ink); outline: none; }
+.field-input:focus { border-color: var(--accent); background: var(--surface); }
+.field-hint { font-size: 0.78rem; color: var(--accent); margin-top: 6px; font-weight: 600; }
+
+.btn-primary { display: block; width: 100%; padding: 13px; border-radius: 8px;
+  border: none; background: var(--accent); color: white; font-size: 1rem;
+  font-weight: 600; font-family: inherit; cursor: pointer; text-align: center; margin-top: 6px; }
+.btn-primary:active { background: var(--accent-dark); }
+.btn-danger { display: block; width: 100%; padding: 12px; border-radius: 8px;
+  border: 1.5px solid var(--red); background: #fdecea; color: var(--red);
+  font-size: 0.92rem; font-weight: 600; font-family: inherit; cursor: pointer; margin-top: 10px; }
+.btn-close { display: block; width: 100%; padding: 12px; border-radius: 8px;
+  border: 1.5px solid var(--border); background: var(--surface);
+  color: var(--ink-soft); font-size: 0.95rem; font-weight: 500;
+  font-family: inherit; cursor: pointer; margin-top: 8px; }
+
+.detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
+.info-cell { background: var(--bg); border-radius: 8px; padding: 10px 12px; border: 1px solid var(--border); }
+.info-label { font-size: 0.68rem; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 0.08em; }
+.info-value { font-size: 0.95rem; font-weight: 600; color: var(--ink); margin-top: 3px; }
+.detail-status-box { padding: 12px 14px; border-radius: 10px; margin-bottom: 14px; border: 1.5px solid var(--border); }
+
+/* Toast */
+.toast { position: fixed; bottom: calc(24px + var(--safe-bottom)); left: 50%;
+  transform: translateX(-50%) translateY(20px); background: #1a1a1a; color: white;
+  padding: 10px 18px; border-radius: 20px; font-size: 0.88rem; font-weight: 600;
+  opacity: 0; transition: opacity 0.2s, transform 0.2s; pointer-events: none;
+  white-space: nowrap; z-index: 200; letter-spacing: 0.02em; }
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<!-- ── LOGIN ──────────────────────────────────────────────── -->
+<div id="loginScreen">
+  <div class="login-logo">Stundenbuch</div>
+  <div class="login-sub">Zeiterfassung &amp; Zahlungen</div>
+  <div class="login-card">
+    <h2>Anmelden</h2>
+    <div class="login-field">
+      <label>Passwort</label>
+      <input type="password" id="loginPass" placeholder="••••••" autocomplete="current-password">
+    </div>
+    <button class="login-btn" id="loginBtn" onclick="doLogin()">Anmelden</button>
+    <div class="login-error" id="loginError">Falsches Passwort.</div>
+  </div>
+</div>
+
+<!-- ── APP ────────────────────────────────────────────────── -->
+<div id="app">
+  <header class="header">
+    <span class="header-title">Stundenbuch</span>
+    <div class="header-actions">
+      <button class="icon-btn" id="syncBtn" onclick="syncData()" title="Aktualisieren">↻</button>
+      <button class="icon-btn" onclick="doLogout()" title="Abmelden">⏏</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-label">Offener Betrag</div>
+        <div class="stat-value orange" id="statOffen">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Bereits bezahlt</div>
+        <div class="stat-value green" id="statBezahlt">—</div>
+      </div>
+      <div class="stat-card wide">
+        <div class="stat-label">Einsätze gesamt</div>
+        <div class="stat-value ink" id="statCount">—</div>
+      </div>
+    </div>
+
+    <div class="filter-row">
+      <button class="chip active" data-filter="alle" onclick="setFilter('alle',this)">Alle</button>
+      <button class="chip" data-filter="offen" onclick="setFilter('offen',this)">🔴 Offen</button>
+      <button class="chip" data-filter="bezahlt" onclick="setFilter('bezahlt',this)">✅ Bezahlt</button>
+    </div>
+
+    <div id="entryList"></div>
+  </main>
+
+  <button class="fab" onclick="openAdd()" title="Eintrag hinzufügen">+</button>
+</div>
+
+<!-- Add Overlay -->
+<div class="overlay" id="addOverlay">
+  <div class="overlay-backdrop" onclick="closeAdd()"></div>
+  <div class="overlay-sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header">
+      <div class="sheet-title">Einsatz erfassen</div>
+      <div class="sheet-sub">30 € pro Stunde</div>
+    </div>
+    <div class="sheet-body">
+      <div class="field-group">
+        <label class="field-label">Datum</label>
+        <input class="field-input" type="date" id="addDatum">
+      </div>
+      <div class="field-group">
+        <label class="field-label">Dauer (Minuten)</label>
+        <input class="field-input" type="number" id="addMinuten" min="1" step="5" placeholder="z.B. 90" oninput="updateAddPreview()">
+        <div class="field-hint" id="addPreview"></div>
+      </div>
+      <div class="field-group">
+        <label class="field-label">Notiz</label>
+        <input class="field-input" type="text" id="addNotiz" placeholder="z.B. Einkaufen, Spaziergang…">
+      </div>
+      <button class="btn-primary" onclick="saveEntry()">Speichern</button>
+      <button class="btn-close" onclick="closeAdd()">Abbrechen</button>
+    </div>
+  </div>
+</div>
+
+<!-- Detail Overlay -->
+<div class="overlay" id="detailOverlay">
+  <div class="overlay-backdrop" onclick="closeDetail()"></div>
+  <div class="overlay-sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header">
+      <div class="sheet-title" id="detailDatum">—</div>
+      <div class="sheet-sub" id="detailSub">—</div>
+    </div>
+    <div class="sheet-body">
+      <div class="detail-grid" id="detailGrid"></div>
+      <div id="detailStatusBox"></div>
+      <div id="detailActions"></div>
+      <button class="btn-danger" onclick="removeEntry()">Eintrag löschen</button>
+      <button class="btn-close" onclick="closeDetail()">Schließen</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const API_URL = 'DEINE_APPS_SCRIPT_URL_HIER'; // ← nach dem Deploy einfügen, endet auf /exec
+const STUNDENSATZ = 30;
+
+// ── Auth ─────────────────────────────────────────────────
+const APP_PASSWORD = 'stundenbuch2026'; // ← unbedingt vor dem Live-Gang ändern
+const AUTH_KEY = 'stundenbuch_auth_v1';
+const AUTH_TOKEN = 'sauth_' + btoa(unescape(encodeURIComponent(APP_PASSWORD)));
+
+function checkAuth() {
+  if (localStorage.getItem(AUTH_KEY) === AUTH_TOKEN) {
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('app').style.display = 'flex';
+    initApp();
+  } else {
+    document.getElementById('loginScreen').style.display = 'flex';
+    setTimeout(() => document.getElementById('loginPass').focus(), 300);
+  }
+}
+window.addEventListener('load', checkAuth);
+
+function doLogin() {
+  const pass = document.getElementById('loginPass').value;
+  const token = 'sauth_' + btoa(unescape(encodeURIComponent(pass)));
+  if (token === AUTH_TOKEN) {
+    localStorage.setItem(AUTH_KEY, token);
+    document.getElementById('loginError').style.display = 'none';
+    checkAuth();
+  } else {
+    document.getElementById('loginError').style.display = 'block';
+  }
+}
+document.addEventListener('DOMContentLoaded', () => {
+  const el = document.getElementById('loginPass');
+  if (el) el.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+});
+
+function doLogout() {
+  localStorage.removeItem(AUTH_KEY);
+  document.getElementById('loginPass').value = '';
+  checkAuth();
+}
+
+// ── State ────────────────────────────────────────────────
+let state = { entries: [], filter: 'alle', activeEntry: null };
+
+function api(params) {
+  return fetch(API_URL + '?' + new URLSearchParams(params).toString()).then(r => r.json());
+}
+
+function toast(msg, dur = 2200) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), dur);
+}
+
+function todayISO() {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+
+function formatDateDE(iso) {
+  if (!iso) return '—';
+  const parts = String(iso).split('-');
+  if (parts.length !== 3) return iso;
+  return parts[2] + '.' + parts[1] + '.' + parts[0];
+}
+
+function formatEuro(n) {
+  return (n || 0).toLocaleString('de-AT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+}
+
+function formatMinuten(min) {
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  if (h === 0) return m + ' Min';
+  if (m === 0) return h + ' Std';
+  return h + ' Std ' + m + ' Min';
+}
+
+// ── Init / Sync ──────────────────────────────────────────
+function initApp() {
+  loadCache();
+  renderAll();
+  syncData();
+}
+
+function loadCache() {
+  const cached = localStorage.getItem('stundenbuchCachedEntries');
+  if (cached) state.entries = JSON.parse(cached);
+}
+
+async function syncData() {
+  const btn = document.getElementById('syncBtn');
+  btn.innerHTML = '<span class="spin">↻</span>';
+  btn.disabled = true;
+  try {
+    const data = await api({ action: 'getAll' });
+    if (data.error) throw new Error(data.error);
+    state.entries = data.items || [];
+    localStorage.setItem('stundenbuchCachedEntries', JSON.stringify(state.entries));
+    renderAll();
+  } catch (e) {
+    toast('Fehler beim Laden');
+  } finally {
+    btn.innerHTML = '↻';
+    btn.disabled = false;
+  }
+}
+
+function renderAll() {
+  renderStats();
+  renderList();
+}
+
+function renderStats() {
+  const offen = state.entries.filter(e => e.status !== 'bezahlt').reduce((s, e) => s + (e.betrag || 0), 0);
+  const bezahlt = state.entries.filter(e => e.status === 'bezahlt').reduce((s, e) => s + (e.betrag || 0), 0);
+  document.getElementById('statOffen').textContent = formatEuro(offen);
+  document.getElementById('statBezahlt').textContent = formatEuro(bezahlt);
+  document.getElementById('statCount').textContent = state.entries.length;
+}
+
+function setFilter(f, el) {
+  state.filter = f;
+  document.querySelectorAll('.filter-row .chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  renderList();
+}
+
+function renderList() {
+  let entries = state.entries.filter(e => {
+    if (state.filter === 'offen') return e.status !== 'bezahlt';
+    if (state.filter === 'bezahlt') return e.status === 'bezahlt';
+    return true;
+  });
+  entries = entries.slice().sort((a, b) => String(b.datum).localeCompare(String(a.datum)));
+
+  const el = document.getElementById('entryList');
+  if (!entries.length) {
+    el.innerHTML = `<div class="empty-state"><div class="icon">🗓️</div><p>Keine Einträge gefunden</p></div>`;
+    return;
+  }
+  el.innerHTML = entries.map(entryCard).join('');
+}
+
+function entryCard(e) {
+  const badge = e.status === 'bezahlt'
+    ? `<span class="badge badge-bezahlt">✅ Bezahlt am ${formatDateDE(e.bezahltAm)}</span>`
+    : `<span class="badge badge-offen">🔴 Offen</span>`;
+  return `<div class="card" onclick="openDetail('${e.id}')">
+    <div class="card-top">
+      <div class="card-datum">${formatDateDE(e.datum)}</div>
+      <div class="card-betrag">${formatEuro(e.betrag)}</div>
+    </div>
+    <div class="card-sub">${formatMinuten(e.minuten)}</div>
+    ${e.notiz ? `<div class="card-notiz">${escapeHtml(e.notiz)}</div>` : ''}
+    <div class="card-bottom">${badge}</div>
+  </div>`;
+}
+
+function escapeHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+// ── Add Entry ────────────────────────────────────────────
+function openAdd() {
+  document.getElementById('addDatum').value = todayISO();
+  document.getElementById('addMinuten').value = '';
+  document.getElementById('addNotiz').value = '';
+  document.getElementById('addPreview').textContent = '';
+  document.getElementById('addOverlay').classList.add('open');
+}
+
+function closeAdd() {
+  document.getElementById('addOverlay').classList.remove('open');
+}
+
+function updateAddPreview() {
+  const min = parseInt(document.getElementById('addMinuten').value) || 0;
+  const betrag = Math.round((min / 60 * STUNDENSATZ) * 100) / 100;
+  document.getElementById('addPreview').textContent = min > 0
+    ? `= ${formatMinuten(min)} → ${formatEuro(betrag)}` : '';
+}
+
+async function saveEntry() {
+  const datum = document.getElementById('addDatum').value;
+  const minuten = parseInt(document.getElementById('addMinuten').value) || 0;
+  const notiz = document.getElementById('addNotiz').value.trim();
+  if (!datum) { toast('Bitte Datum wählen'); return; }
+  if (minuten <= 0) { toast('Bitte Dauer eingeben'); return; }
+  try {
+    const res = await api({ action: 'addEntry', datum, minuten, notiz });
+    if (res.error) { toast('Fehler: ' + res.error); return; }
+    closeAdd();
+    toast(`Eintrag gespeichert · ${formatEuro(res.betrag)} ✓`);
+    syncData();
+  } catch (e) {
+    toast('Verbindungsfehler');
+  }
+}
+
+// ── Detail / Payment ─────────────────────────────────────
+function openDetail(id) {
+  const entry = state.entries.find(e => e.id === id);
+  if (!entry) return;
+  state.activeEntry = entry;
+
+  document.getElementById('detailDatum').textContent = formatDateDE(entry.datum);
+  document.getElementById('detailSub').textContent = entry.notiz || 'Keine Notiz';
+
+  document.getElementById('detailGrid').innerHTML = `
+    <div class="info-cell"><div class="info-label">Dauer</div><div class="info-value">${formatMinuten(entry.minuten)}</div></div>
+    <div class="info-cell"><div class="info-label">Betrag</div><div class="info-value">${formatEuro(entry.betrag)}</div></div>`;
+
+  const statusBox = document.getElementById('detailStatusBox');
+  const actions = document.getElementById('detailActions');
+
+  if (entry.status === 'bezahlt') {
+    statusBox.innerHTML = `<div class="detail-status-box" style="background:var(--green-light);border-color:var(--green)">
+      ✅ Bezahlt am ${formatDateDE(entry.bezahltAm)}</div>`;
+    actions.innerHTML = `<button class="btn-primary" style="background:var(--ink-soft)" onclick="undoPaid()">Zahlung rückgängig machen</button>`;
+  } else {
+    statusBox.innerHTML = `<div class="detail-status-box" style="background:var(--orange-light);border-color:var(--orange)">
+      🔴 Noch offen</div>`;
+    actions.innerHTML = `
+      <div class="field-group">
+        <label class="field-label">Bezahlt am</label>
+        <input class="field-input" type="date" id="paidDatum" value="${todayISO()}">
+      </div>
+      <button class="btn-primary" onclick="confirmPaid()">Als bezahlt markieren</button>`;
+  }
+
+  document.getElementById('detailOverlay').classList.add('open');
+}
+
+function closeDetail() {
+  document.getElementById('detailOverlay').classList.remove('open');
+  state.activeEntry = null;
+}
+
+async function confirmPaid() {
+  const entry = state.activeEntry;
+  if (!entry) return;
+  const bezahltAm = document.getElementById('paidDatum').value || todayISO();
+  try {
+    const res = await api({ action: 'markPaid', id: entry.id, bezahltAm });
+    if (res.error) { toast('Fehler: ' + res.error); return; }
+    closeDetail();
+    toast('Als bezahlt markiert ✓');
+    syncData();
+  } catch (e) { toast('Verbindungsfehler'); }
+}
+
+async function undoPaid() {
+  const entry = state.activeEntry;
+  if (!entry) return;
+  try {
+    const res = await api({ action: 'unmarkPaid', id: entry.id });
+    if (res.error) { toast('Fehler: ' + res.error); return; }
+    closeDetail();
+    toast('Zahlung zurückgesetzt');
+    syncData();
+  } catch (e) { toast('Verbindungsfehler'); }
+}
+
+async function removeEntry() {
+  const entry = state.activeEntry;
+  if (!entry) return;
+  if (!confirm(`Eintrag vom ${formatDateDE(entry.datum)} wirklich löschen?`)) return;
+  try {
+    const res = await api({ action: 'deleteEntry', id: entry.id });
+    if (res.error) { toast('Fehler: ' + res.error); return; }
+    closeDetail();
+    toast('Eintrag gelöscht');
+    syncData();
+  } catch (e) { toast('Verbindungsfehler'); }
+}
+
+// ── Home-Screen Icon ──────────────────────────────────────
+(function setupIcon() {
+  const c = document.createElement('canvas');
+  c.width = 180; c.height = 180;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#2d2d2d';
+  ctx.fillRect(0, 0, 180, 180);
+  ctx.font = '100px serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('❤️', 90, 94);
+  const url = c.toDataURL('image/png');
+  let lnk = document.querySelector('link[rel="apple-touch-icon"]');
+  if (!lnk) { lnk = document.createElement('link'); lnk.rel = 'apple-touch-icon'; document.head.appendChild(lnk); }
+  lnk.href = url;
+})();
+</script>
+</body>
+</html>
