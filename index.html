@@ -217,7 +217,7 @@ main { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch;
     <div id="entryList"></div>
   </main>
 
-  <button class="fab" onclick="openAdd()" title="Eintrag hinzufügen">+</button>
+  <button class="fab" id="fabAdd" onclick="openAdd()" title="Eintrag hinzufügen">+</button>
 </div>
 
 <!-- Add Overlay -->
@@ -262,7 +262,7 @@ main { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch;
       <div class="detail-grid" id="detailGrid"></div>
       <div id="detailStatusBox"></div>
       <div id="detailActions"></div>
-      <button class="btn-danger" onclick="removeEntry()">Eintrag löschen</button>
+      <button class="btn-danger" id="deleteEntryBtn" onclick="removeEntry()">Eintrag löschen</button>
       <button class="btn-close" onclick="closeDetail()">Schließen</button>
     </div>
   </div>
@@ -296,13 +296,18 @@ const STUNDENSATZ = 30;
 
 // ── Auth ─────────────────────────────────────────────────
 const APP_PASSWORD = 'stundenbuch2026'; // ← unbedingt vor dem Live-Gang ändern
+const VIEWER_PASSWORD = 'meinestunden26'; // ← Lesezugang, keine Änderungen möglich
 const AUTH_KEY = 'stundenbuch_auth_v1';
 const AUTH_TOKEN = 'sauth_' + btoa(unescape(encodeURIComponent(APP_PASSWORD)));
+const VIEWER_TOKEN = 'sauth_' + btoa(unescape(encodeURIComponent(VIEWER_PASSWORD)));
 
 function checkAuth() {
-  if (localStorage.getItem(AUTH_KEY) === AUTH_TOKEN) {
+  const stored = localStorage.getItem(AUTH_KEY);
+  if (stored === AUTH_TOKEN || stored === VIEWER_TOKEN) {
+    state.role = stored === AUTH_TOKEN ? 'full' : 'readonly';
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('app').style.display = 'flex';
+    applyRole();
     initApp();
   } else {
     document.getElementById('loginScreen').style.display = 'flex';
@@ -314,13 +319,19 @@ window.addEventListener('load', checkAuth);
 function doLogin() {
   const pass = document.getElementById('loginPass').value;
   const token = 'sauth_' + btoa(unescape(encodeURIComponent(pass)));
-  if (token === AUTH_TOKEN) {
+  if (token === AUTH_TOKEN || token === VIEWER_TOKEN) {
     localStorage.setItem(AUTH_KEY, token);
     document.getElementById('loginError').style.display = 'none';
     checkAuth();
   } else {
     document.getElementById('loginError').style.display = 'block';
   }
+}
+
+function applyRole() {
+  const readonly = state.role === 'readonly';
+  document.getElementById('fabAdd').style.display = readonly ? 'none' : 'flex';
+  document.getElementById('deleteEntryBtn').style.display = readonly ? 'none' : 'block';
 }
 document.addEventListener('DOMContentLoaded', () => {
   const el = document.getElementById('loginPass');
@@ -334,7 +345,7 @@ function doLogout() {
 }
 
 // ── State ────────────────────────────────────────────────
-let state = { entries: [], filter: 'alle', activeEntry: null };
+let state = { entries: [], filter: 'alle', activeEntry: null, role: 'full' };
 
 function api(params) {
   return fetch(API_URL + '?' + new URLSearchParams(params).toString()).then(r => r.json());
@@ -413,7 +424,7 @@ function renderStats() {
   document.getElementById('statBezahlt').textContent = formatEuro(bezahlt);
   document.getElementById('statCount').textContent = state.entries.length;
   const openCount = state.entries.filter(e => e.status !== 'bezahlt').length;
-  document.getElementById('payAllBtn').style.display = openCount > 0 ? 'block' : 'none';
+  document.getElementById('payAllBtn').style.display = (state.role !== 'readonly' && openCount > 0) ? 'block' : 'none';
 }
 
 function setFilter(f, el) {
@@ -516,7 +527,7 @@ function openDetail(id) {
   if (entry.status === 'bezahlt') {
     statusBox.innerHTML = `<div class="detail-status-box" style="background:var(--green-light);border-color:var(--green)">
       ✅ Bezahlt am ${formatDateDE(entry.bezahltAm)}</div>`;
-    actions.innerHTML = `<button class="btn-primary" style="background:var(--ink-soft)" onclick="undoPaid()">Zahlung rückgängig machen</button>`;
+    actions.innerHTML = state.role === 'readonly' ? '' : `<button class="btn-primary" style="background:var(--ink-soft)" onclick="undoPaid()">Zahlung rückgängig machen</button>`;
   } else {
     statusBox.innerHTML = `<div class="detail-status-box" style="background:var(--orange-light);border-color:var(--orange)">
       🔴 Noch offen</div>`;
