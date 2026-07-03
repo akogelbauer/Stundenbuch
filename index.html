@@ -206,6 +206,8 @@ main { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch;
       </div>
     </div>
 
+    <button class="btn-primary" id="payAllBtn" onclick="openPayAll()" style="display:none;margin-bottom:14px">Alle offenen als bezahlt markieren</button>
+
     <div class="filter-row">
       <button class="chip active" data-filter="alle" onclick="setFilter('alle',this)">Alle</button>
       <button class="chip" data-filter="offen" onclick="setFilter('offen',this)">🔴 Offen</button>
@@ -266,11 +268,34 @@ main { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch;
   </div>
 </div>
 
+<!-- Pay All Overlay -->
+<div class="overlay" id="payAllOverlay">
+  <div class="overlay-backdrop" onclick="closePayAll()"></div>
+  <div class="overlay-sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header">
+      <div class="sheet-title">Als bezahlt markieren</div>
+      <div class="sheet-sub" id="payAllSub">—</div>
+    </div>
+    <div class="sheet-body">
+      <div class="field-group">
+        <label class="field-label">Bezahlt am</label>
+        <input class="field-input" type="date" id="payAllDatum">
+      </div>
+      <button class="btn-primary" onclick="confirmPayAll()">Bestätigen</button>
+      <button class="btn-close" onclick="closePayAll()">Abbrechen</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
 const API_URL = 'https://script.google.com/macros/s/AKfycbw36mi09mbd9QqrgdAzxi6aRGCqyn3dSVSa4U_81znIukGTRyPKlfKXqZiqK8M1zQz_/exec';
-const APP_PASSWORD = 'stunden2026'; // ← unbedingt vor dem Live-Gang ändern
+const STUNDENSATZ = 30;
+
+// ── Auth ─────────────────────────────────────────────────
+const APP_PASSWORD = 'stundenbuch2026'; // ← unbedingt vor dem Live-Gang ändern
 const AUTH_KEY = 'stundenbuch_auth_v1';
 const AUTH_TOKEN = 'sauth_' + btoa(unescape(encodeURIComponent(APP_PASSWORD)));
 
@@ -387,6 +412,8 @@ function renderStats() {
   document.getElementById('statOffen').textContent = formatEuro(offen);
   document.getElementById('statBezahlt').textContent = formatEuro(bezahlt);
   document.getElementById('statCount').textContent = state.entries.length;
+  const openCount = state.entries.filter(e => e.status !== 'bezahlt').length;
+  document.getElementById('payAllBtn').style.display = openCount > 0 ? 'block' : 'none';
 }
 
 function setFilter(f, el) {
@@ -493,12 +520,7 @@ function openDetail(id) {
   } else {
     statusBox.innerHTML = `<div class="detail-status-box" style="background:var(--orange-light);border-color:var(--orange)">
       🔴 Noch offen</div>`;
-    actions.innerHTML = `
-      <div class="field-group">
-        <label class="field-label">Bezahlt am</label>
-        <input class="field-input" type="date" id="paidDatum" value="${todayISO()}">
-      </div>
-      <button class="btn-primary" onclick="confirmPaid()">Als bezahlt markieren</button>`;
+    actions.innerHTML = '';
   }
 
   document.getElementById('detailOverlay').classList.add('open');
@@ -509,15 +531,27 @@ function closeDetail() {
   state.activeEntry = null;
 }
 
-async function confirmPaid() {
-  const entry = state.activeEntry;
-  if (!entry) return;
-  const bezahltAm = document.getElementById('paidDatum').value || todayISO();
+// ── Pay All (bulk) ────────────────────────────────────────
+function openPayAll() {
+  const open = state.entries.filter(e => e.status !== 'bezahlt');
+  if (!open.length) return;
+  const sum = open.reduce((s, e) => s + (e.betrag || 0), 0);
+  document.getElementById('payAllSub').textContent = `${open.length} offene Einsätze · ${formatEuro(sum)}`;
+  document.getElementById('payAllDatum').value = todayISO();
+  document.getElementById('payAllOverlay').classList.add('open');
+}
+
+function closePayAll() {
+  document.getElementById('payAllOverlay').classList.remove('open');
+}
+
+async function confirmPayAll() {
+  const bezahltAm = document.getElementById('payAllDatum').value || todayISO();
   try {
-    const res = await api({ action: 'markPaid', id: entry.id, bezahltAm });
+    const res = await api({ action: 'markAllPaid', bezahltAm });
     if (res.error) { toast('Fehler: ' + res.error); return; }
-    closeDetail();
-    toast('Als bezahlt markiert ✓');
+    closePayAll();
+    toast(`${res.count} Einsätze als bezahlt markiert ✓`);
     syncData();
   } catch (e) { toast('Verbindungsfehler'); }
 }
